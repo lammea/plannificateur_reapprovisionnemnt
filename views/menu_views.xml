@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Menu principal -->
+    <menuitem id="menu_reappro_root"
+              name="Planificateur de réapprovisionnement"
+              sequence="100"/>
+
+    <!-- Sous-menu -->
+    <menuitem id="menu_reappro_planning"
+              name="Plan de réapprovisionnement"
+              parent="menu_reappro_root"
+              />
+</odoo> 
