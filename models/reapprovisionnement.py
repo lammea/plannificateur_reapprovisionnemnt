@@ -25,10 +25,10 @@ class ProductWithBom(models.Model):
                     -- On commence par le premier jour du mois actuel
                     SELECT date_trunc('month', CURRENT_DATE) AS month_date
                     UNION ALL
-                    -- On ajoute les 24 prochains mois pour s'assurer d'avoir une couverture suffisante
+                    -- On ajoute les mois sur 5 ans pour avoir une vision à long terme
                     SELECT month_date + interval '1 month'
                     FROM months
-                    WHERE month_date < date_trunc('month', CURRENT_DATE) + interval '24 months'
+                    WHERE month_date < date_trunc('month', CURRENT_DATE) + interval '5 years'
                 ),
                 previous_year_sales AS (
                     SELECT 
@@ -100,38 +100,44 @@ class PlannificateurReappro(models.Model):
 
             if record.periode == 'mensuel' and record.mois:
                 month = int(record.mois)
-                # Si le mois sélectionné est inférieur au mois actuel, on prend l'année suivante
-                year = current_year if month >= current_date.month else current_year + 1
+                year = current_year
+                if record.annee:
+                    year = int(record.annee)
+                elif month < current_date.month:
+                    year = current_year + 1
                 start_date = fields.Date.to_date(f'{year}-{month:02d}-01')
                 end_date = start_date + relativedelta(months=1, days=-1)
+
             elif record.periode == 'trimestriel' and record.trimestre:
                 trimestre = int(record.trimestre)
                 start_month = ((trimestre - 1) * 3) + 1
                 end_month = start_month + 2
-                # Si le trimestre sélectionné commence avant le mois actuel, on prend l'année suivante
-                year = current_year if start_month >= current_date.month else current_year + 1
+                year = current_year
+                if record.annee:
+                    year = int(record.annee)
+                elif start_month < current_date.month:
+                    year = current_year + 1
                 start_date = fields.Date.to_date(f'{year}-{start_month:02d}-01')
                 if end_month == 12:
                     end_date = fields.Date.to_date(f'{year}-12-31')
                 else:
                     end_date = fields.Date.to_date(f'{year}-{end_month:02d}-01') + relativedelta(months=1, days=-1)
+
             elif record.periode == 'semestriel' and record.semestre:
-                month = (int(record.semestre) - 1) * 6 + 1
-                # Si le semestre sélectionné commence avant le mois actuel, on prend l'année suivante
-                year = current_year if month >= current_date.month else current_year + 1
-                start_date = fields.Date.to_date(f'{year}-{month:02d}-01')
+                semestre = int(record.semestre)
+                start_month = ((semestre - 1) * 6) + 1
+                year = current_year
+                if record.annee:
+                    year = int(record.annee)
+                elif start_month < current_date.month:
+                    year = current_year + 1
+                start_date = fields.Date.to_date(f'{year}-{start_month:02d}-01')
                 end_date = start_date + relativedelta(months=6, days=-1)
+
             elif record.periode == 'annuel' and record.annee:
                 year = int(record.annee)
-                if year < current_year:
-                    start_date = False
-                    end_date = False
-                else:
-                    start_date = fields.Date.to_date(f'{year}-01-01')
-                    if year == current_year:
-                        # Pour l'année en cours, on commence au mois actuel
-                        start_date = fields.Date.to_date(f'{year}-{current_date.month:02d}-01')
-                    end_date = fields.Date.to_date(f'{year}-12-31')
+                start_date = fields.Date.to_date(f'{year}-01-01')
+                end_date = fields.Date.to_date(f'{year}-12-31')
             
             record.date_debut = start_date
             record.date_fin = end_date
