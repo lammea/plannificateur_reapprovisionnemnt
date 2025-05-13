@@ -23,10 +23,14 @@
                                    attrs="{'invisible': [('periode', '!=', 'annuel')], 'required': [('periode', '=', 'annuel')]}"
                                    placeholder="Sélectionnez l'année"/>
                             <field name="show_products" invisible="1"/>
+                            <field name="is_future_year" invisible="1"/>
                         </group>
                     </group>
                     <notebook attrs="{'invisible': [('show_products', '=', False)]}">
-                        <page string="Produits à réapprovisionner">
+                        <page string="Saisie des prévisions">
+                            <div attrs="{'invisible': [('is_future_year', '=', False)]}" class="alert alert-info" role="alert">
+                                <field name="year_message" readonly="1" nolabel="1"/>
+                            </div>
                             <separator string="Produits par Mois"/>
                             <field name="product_ids">
                                 <tree editable="bottom">

@@ -14,7 +14,6 @@ class ProductWithBom(models.Model):
     default_code = fields.Char(string='Référence', readonly=True)
     month_date = fields.Date(string='Date du mois', readonly=True)
     month_name = fields.Char(string='Mois', readonly=True, group_operator="min")
-    stock_history = fields.Text(string='Historique des mouvements', readonly=True)
     previous_year_sales = fields.Float(string='Ventes N-1', readonly=True)
     forecast_qty = fields.Float(string='Prévisions', readonly=False)
 
@@ -26,29 +25,10 @@ class ProductWithBom(models.Model):
                     -- On commence par le premier jour du mois actuel
                     SELECT date_trunc('month', CURRENT_DATE) AS month_date
                     UNION ALL
-                    -- On ajoute les 12 prochains mois
+                    -- On ajoute les 24 prochains mois pour s'assurer d'avoir une couverture suffisante
                     SELECT month_date + interval '1 month'
                     FROM months
-                    WHERE month_date < date_trunc('month', CURRENT_DATE) + interval '12 months'
-                ),
-                stock_moves AS (
-                    SELECT 
-                        product_id,
-                        string_agg(
-                            'Date: ' || to_char(date, 'DD/MM/YYYY') || 
-                            ' - Qté: ' || round(product_qty::numeric, 2)::text || 
-                            ' - Type: ' || CASE 
-                                WHEN location_dest_id IN (SELECT id FROM stock_location WHERE usage = 'internal') 
-                                THEN 'Entrée' 
-                                ELSE 'Sortie' 
-                            END,
-                            E'\n'
-                            ORDER BY date DESC
-                        ) as movement_history
-                    FROM stock_move
-                    WHERE state = 'done'
-                    AND date >= CURRENT_DATE - interval '6 months'
-                    GROUP BY product_id
+                    WHERE month_date < date_trunc('month', CURRENT_DATE) + interval '24 months'
                 ),
                 previous_year_sales AS (
                     SELECT 
@@ -66,14 +46,13 @@ class ProductWithBom(models.Model):
                         sol.product_id,
                         date_trunc('month', so.date_order)
                 )
-                SELECT 
+                SELECT DISTINCT ON (m.month_date, pp.id)
                     ROW_NUMBER() OVER (ORDER BY m.month_date, pp.default_code) as id,
                     pp.id as product_id,
                     pt.name as product_name,
                     pp.default_code,
                     m.month_date,
                     to_char(m.month_date, 'TMMonth YYYY') as month_name,
-                    COALESCE(sm.movement_history, 'Aucun mouvement récent') as stock_history,
                     COALESCE(pys.qty_sold, 0) as previous_year_sales,
                     0 as forecast_qty
                 FROM 
@@ -85,20 +64,13 @@ class ProductWithBom(models.Model):
                 CROSS JOIN
                     months m
                 LEFT JOIN
-                    stock_moves sm ON sm.product_id = pp.id
-                LEFT JOIN
                     previous_year_sales pys ON pys.product_id = pp.id 
                     AND EXTRACT(MONTH FROM pys.sale_month) = EXTRACT(MONTH FROM m.month_date)
                 WHERE 
                     pt.sale_ok = true
                     AND m.month_date >= date_trunc('month', CURRENT_DATE)
-                GROUP BY 
-                    pp.id, pt.name, pp.default_code, m.month_date, 
-                    sm.movement_history, pys.qty_sold
-                HAVING 
-                    COUNT(mb.id) > 0
                 ORDER BY
-                    m.month_date, pp.default_code
+                    m.month_date, pp.id, pp.default_code
             )
         """ % self._table)
 
@@ -133,11 +105,16 @@ class PlannificateurReappro(models.Model):
                 start_date = fields.Date.to_date(f'{year}-{month:02d}-01')
                 end_date = start_date + relativedelta(months=1, days=-1)
             elif record.periode == 'trimestriel' and record.trimestre:
-                month = (int(record.trimestre) - 1) * 3 + 1
+                trimestre = int(record.trimestre)
+                start_month = ((trimestre - 1) * 3) + 1
+                end_month = start_month + 2
                 # Si le trimestre sélectionné commence avant le mois actuel, on prend l'année suivante
-                year = current_year if month >= current_date.month else current_year + 1
-                start_date = fields.Date.to_date(f'{year}-{month:02d}-01')
-                end_date = start_date + relativedelta(months=3, days=-1)
+                year = current_year if start_month >= current_date.month else current_year + 1
+                start_date = fields.Date.to_date(f'{year}-{start_month:02d}-01')
+                if end_month == 12:
+                    end_date = fields.Date.to_date(f'{year}-12-31')
+                else:
+                    end_date = fields.Date.to_date(f'{year}-{end_month:02d}-01') + relativedelta(months=1, days=-1)
             elif record.periode == 'semestriel' and record.semestre:
                 month = (int(record.semestre) - 1) * 6 + 1
                 # Si le semestre sélectionné commence avant le mois actuel, on prend l'année suivante
@@ -209,10 +186,12 @@ class PlannificateurReappro(models.Model):
     # Champs pour les produits
     product_ids = fields.Many2many(
         'product.with.bom',
-        string='Produits à réapprovisionner'
+        string='Saisie des prévisions'
     )
 
     show_products = fields.Boolean(compute='_compute_show_products')
+    is_future_year = fields.Boolean(compute='_compute_is_future_year', string='Est une année future')
+    year_message = fields.Char(compute='_compute_is_future_year', string='Message année')
 
     @api.depends('periode', 'mois', 'trimestre', 'semestre', 'annee')
     def _compute_show_products(self):
@@ -263,6 +242,28 @@ class PlannificateurReappro(models.Model):
             self.product_ids = [(6, 0, products.ids)]
         else:
             self.product_ids = [(5, 0, 0)]
+
+    @api.depends('periode', 'annee', 'trimestre', 'semestre', 'mois')
+    def _compute_is_future_year(self):
+        current_year = fields.Date.today().year
+        for record in self:
+            selected_year = current_year
+            if record.annee:
+                selected_year = int(record.annee)
+            elif record.periode == 'mensuel' and record.mois:
+                month = int(record.mois)
+                selected_year = current_year if month >= fields.Date.today().month else current_year + 1
+            elif record.periode == 'trimestriel' and record.trimestre:
+                trimestre = int(record.trimestre)
+                start_month = ((trimestre - 1) * 3) + 1
+                selected_year = current_year if start_month >= fields.Date.today().month else current_year + 1
+            elif record.periode == 'semestriel' and record.semestre:
+                semestre = int(record.semestre)
+                start_month = ((semestre - 1) * 6) + 1
+                selected_year = current_year if start_month >= fields.Date.today().month else current_year + 1
+            
+            record.is_future_year = selected_year > current_year
+            record.year_message = f"Vous consultez l'année {selected_year}"
 
     @api.model
     def create(self, vals):
