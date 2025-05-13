@@ -12,6 +12,8 @@
         'base',
         'stock',
         'purchase',
+        'mrp',
+        'product'
     ],
     'data': [
         'security/ir.model.access.xml',

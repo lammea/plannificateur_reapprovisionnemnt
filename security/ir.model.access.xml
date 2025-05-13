@@ -22,5 +22,16 @@
             <field name="perm_create" eval="1"/>
             <field name="perm_unlink" eval="1"/>
         </record>
+
+        <!-- Droits d'accès pour la vue SQL des produits -->
+        <record id="access_product_with_bom_user" model="ir.model.access">
+            <field name="name">product.with.bom.user</field>
+            <field name="model_id" ref="model_product_with_bom"/>
+            <field name="group_id" ref="stock.group_stock_user"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="0"/>
+            <field name="perm_create" eval="0"/>
+            <field name="perm_unlink" eval="0"/>
+        </record>
     </data>
 </odoo> 

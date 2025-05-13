@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="ProductGridWidget">
+        <div class="o_product_grid"/>
+    </t>
+
+    <t t-name="ProductGridContent">
+        <div class="product-grid-container">
+            <t t-foreach="months" t-as="month">
+                <div class="month-section mb-3">
+                    <div class="month-header cursor-pointer d-flex align-items-center">
+                        <i t-attf-class="toggle-icon fa mr-2 #{month.isOpen ? 'fa-caret-down' : 'fa-caret-right'}"/>
+                        <span t-esc="month.month"/>
+                    </div>
+                    <div t-attf-class="month-content #{!month.isOpen ? 'd-none' : ''}">
+                        <table class="table table-bordered table-sm">
+                            <thead>
+                                <tr class="bg-light">
+                                    <th>Référence</th>
+                                    <th>Nom du produit</th>
+                                    <th>Historique des ventes</th>
+                                    <th>Prévisions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="month.products" t-as="product">
+                                    <tr>
+                                        <td><t t-esc="product.default_code"/></td>
+                                        <td><t t-esc="product.product_name"/></td>
+                                        <td class="text-right">
+                                            <t t-esc="product.previous_year_sales"/>
+                                        </td>
+                                        <td>
+                                            <input type="number" 
+                                                   class="form-control forecast-input" 
+                                                   t-att-value="product.forecast_qty"
+                                                   t-att-data-product-id="product.product_id"
+                                                   t-att-data-month-date="product.month_date"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </t>
+</templates> 

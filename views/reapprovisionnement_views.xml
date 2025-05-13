@@ -6,24 +6,39 @@
         <field name="model">plannificateur.reappro</field>
         <field name="arch" type="xml">
             <form>
-                <header>
-                    <field name="state" widget="statusbar"/>
-                </header>
                 <sheet>
-                    <div class="oe_title">
-                        <h1>
-                            <field name="name"/>
-                        </h1>
-                    </div>
                     <group>
                         <group>
-                            <field name="date_planification"/>
-                            <field name="product_id"/>
-                        </group>
-                        <group>
-                            <field name="quantite"/>
+                            <field name="periode" placeholder="Veuillez choisir la période"/>
+                            <field name="mois" 
+                                   attrs="{'invisible': [('periode', '!=', 'mensuel')], 'required': [('periode', '=', 'mensuel')]}"
+                                   placeholder="Sélectionnez le mois"/>
+                            <field name="trimestre" 
+                                   attrs="{'invisible': [('periode', '!=', 'trimestriel')], 'required': [('periode', '=', 'trimestriel')]}"
+                                   placeholder="Sélectionnez le trimestre"/>
+                            <field name="semestre" 
+                                   attrs="{'invisible': [('periode', '!=', 'semestriel')], 'required': [('periode', '=', 'semestriel')]}"
+                                   placeholder="Sélectionnez le semestre"/>
+                            <field name="annee" 
+                                   attrs="{'invisible': [('periode', '!=', 'annuel')], 'required': [('periode', '=', 'annuel')]}"
+                                   placeholder="Sélectionnez l'année"/>
+                            <field name="show_products" invisible="1"/>
                         </group>
                     </group>
+                    <notebook attrs="{'invisible': [('show_products', '=', False)]}">
+                        <page string="Produits à réapprovisionner">
+                            <separator string="Produits par Mois"/>
+                            <field name="product_ids">
+                                <tree editable="bottom">
+                                    <field name="month_name" string="Mois" readonly="1"/>
+                                    <field name="default_code" string="Référence" readonly="1"/>
+                                    <field name="product_name" string="Nom du produit" readonly="1"/>
+                                    <field name="previous_year_sales" string="Historique des ventes" readonly="1"/>
+                                    <field name="forecast_qty" string="Prévisions"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
@@ -35,12 +50,43 @@
         <field name="model">plannificateur.reappro</field>
         <field name="arch" type="xml">
             <tree>
-                <field name="name"/>
-                <field name="date_planification"/>
-                <field name="product_id"/>
-                <field name="quantite"/>
-                <field name="state"/>
+                <field name="periode"/>
+                <field name="mois"/>
+                <field name="trimestre"/>
+                <field name="semestre"/>
+                <field name="annee"/>
             </tree>
+        </field>
+    </record>
+
+    <!-- Vue pour les produits avec nomenclature -->
+    <record id="view_product_with_bom_tree" model="ir.ui.view">
+        <field name="name">product.with.bom.tree</field>
+        <field name="model">product.with.bom</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="month_name" string="Mois" readonly="1"/>
+                <field name="default_code" string="Référence" readonly="1"/>
+                <field name="product_name" string="Nom du produit" readonly="1"/>
+                <field name="previous_year_sales" string="Historique des ventes" readonly="1"/>
+                <field name="forecast_qty" string="Prévisions"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Vue de recherche pour le groupement -->
+    <record id="view_product_with_bom_search" model="ir.ui.view">
+        <field name="name">product.with.bom.search</field>
+        <field name="model">product.with.bom</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="default_code"/>
+                <field name="product_name"/>
+                <field name="month_name"/>
+                <group expand="1" string="Grouper par">
+                    <filter name="group_by_month" string="Mois" context="{'group_by': 'month_name'}" domain="[]"/>
+                </group>
+            </search>
         </field>
     </record>
 

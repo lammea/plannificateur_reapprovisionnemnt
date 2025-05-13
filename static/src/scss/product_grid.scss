@@ -1,0 +1,50 @@
+.o_product_grid {
+    .product-grid-container {
+        margin: 1rem 0;
+    }
+
+    .month-section {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+    }
+
+    .month-header {
+        background-color: #f8f9fa;
+        padding: 0.75rem;
+        cursor: pointer;
+        border-bottom: 1px solid #dee2e6;
+
+        &:hover {
+            background-color: #e9ecef;
+        }
+
+        .toggle-icon {
+            transition: transform 0.2s;
+        }
+    }
+
+    .month-content {
+        padding: 1rem;
+    }
+
+    table {
+        margin-bottom: 0;
+    }
+
+    .forecast-input {
+        width: 100px;
+        text-align: right;
+    }
+
+    .table {
+        th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        td {
+            vertical-align: middle;
+        }
+    }
+} 
